@@ -1,20 +1,39 @@
-# Recibo de Pagamento
-Permite que os usuários enviem um recibo de pagamento via WhatsApp utilizando Evolution-Api. Trata-se de um formulário HTML onde os usuários inserem o número do título ou boleto, bem como uma chave de segurança. 
+# README - Recibo WhatsApp
 
+Addon para o Sistema Mk-Auth que envia automaticamente recibos de pagamento via WhatsApp aos clientes de forma rápida e eficiente.
+
+## Estrutura de Arquivos
+
+O Addon é composto pelos seguintes arquivos:
+
+- `index.php`: Página principal que inclui as funcionalidades do addon.
+- `recibo.php`: Contém o formulário para inserção dos dados do boleto e o código PHP para processamento e envio do recibo.
+- `manifest.json`: Arquivo de manifesto do addon, contendo informações sobre o nome, versão e autores do addon.
+- `addon.js`: Arquivo JavaScript que adiciona um link para o addon no menu de clientes do Mk-Auth.
 
 ## Instruções de Uso
-Configure o ambiente:
-Substitua 'chave-seguranca' pela chave de segurança desejada.
-Substitua '{{baseURL}}' e '{{instance}}' pela URL e instância adequada da EvolutionAPI.
-Insira o token de API correto na chamada cURL.
-Salve o arquivo e hospede-o em um servidor web compatível com PHP e MySQL.
-Acesse o arquivo através do navegador para utilizar o formulário.
 
-### Observações
-Certifique-se de manter seguro a chave de segurança e do token de API, evitando expô-los em código público.
+1. Configure o ambiente:
+   - Certifique-se de ter o Mk-Auth instalado e configurado em seu servidor.
+   - Importe os arquivos do projeto para o diretório `/opt/mk-auth/admin/addons/` no Mk-Auth.
 
-Nota: Este código é fornecido apenas como exemplo e pode precisar de ajustes para funcionar em seu ambiente específico.
+2. Personalize o código:
+   - No arquivo `recibo.php` já encontra-se pré definido as configurações padrão para conexão com o banco de dados do Mk-Auth (host, usuário, senha e banco de dados).
+   - Configure a chave de segurança.
+   - Adapte a URL da EvolutionAPI para envio das mensagens via WhatsApp.
+   - Substitua o token de API pelo token correto.
 
-Para mais informações e detalhes sobre como utilizar este código, consulte os comentários no próprio código fonte.
+3. Acesse o sistema:
+   - Após configurar o ambiente e personalizar o código, acesse o sistema Mk-Auth.
+   - Na interface do sistema, localize o link para o Addon "Recibo WhatsApp" no menu de clientes.
 
-Aviso Legal: Este código é fornecido "como está", sem garantias de qualquer tipo. Utilize por sua própria conta e risco.
+4. Envio de Recibos:
+   - Preencha o formulário com o número do título ou boleto e a chave de segurança.
+   - Após enviar o formulário, o sistema irá processar os dados e enviar o recibo automaticamente para o cliente via WhatsApp.
+
+## Observações
+
+- Este projeto é uma extensão (Addon) para o Sistema Mk-Auth e requer conhecimento prévio sobre o funcionamento do sistema.
+- Certifique-se de configurar corretamente as permissões de acesso e segurança para proteger as informações sensíveis, como chaves de segurança e tokens de API.
+
+**Nota:** Este projeto foi desenvolvido como um exemplo de integração e pode exigir ajustes adicionais para atender às necessidades específicas do seu ambiente e sistema.
