@@ -11,6 +11,25 @@ $senha = "vertrigo"; // Senha do banco de dados MySQL
 $db = "mkradius"; // Nome do banco de dados MySQL
 
 // ------------------------------------------------------------------------------------------------
+// Função para tratar e formatar o número de telefone
+// ------------------------------------------------------------------------------------------------
+function formatarNumero($numero) {
+    // Remove todos os caracteres que não sejam números
+    $numero = preg_replace('/\D/', '', $numero);
+
+    // Verifica se o número tem o código de área (DDD) com 2 dígitos e o número com 8 ou 9 dígitos
+    if (strlen($numero) == 10) {
+        // Número de telefone com 8 dígitos (sem o 9 na frente)
+        $numero = '55' . substr($numero, 0, 2) . '9' . substr($numero, 2); // Adiciona o DDI 55 e insere o 9 antes do número
+    } elseif (strlen($numero) == 11) {
+        // Número de telefone com 9 dígitos (formato correto)
+        $numero = '55' . $numero; // Adiciona o DDI 55
+    }
+
+    return $numero;
+}
+
+// ------------------------------------------------------------------------------------------------
 // Lógica para processar o título e mostrar as informações da mensagem antes de enviar
 // ------------------------------------------------------------------------------------------------
 
@@ -53,9 +72,9 @@ if (isset($_POST["titulo"])) {
     $cliente = "SELECT celular FROM sis_cliente WHERE login = '$login'";
     $res = mysqli_query($con, $cliente);
 
-    // Extrai o número de celular do cliente
+    // Extrai o número de celular do cliente e aplica a formatação correta
     while ($vreg = mysqli_fetch_row($res)) {
-        $celular = $vreg[0]; // Armazena o número de celular do cliente
+        $celular = formatarNumero($vreg[0]); // Formata o número de celular para o padrão correto
     }
 
     // Prepara os dados para exibição ao usuário
@@ -95,7 +114,7 @@ https://BrLink.org/cliente (coloque o *CPF* do titular)
 
 if (isset($_POST['confirmar'])) {
     // Verifica se o usuário confirmou o envio da mensagem
-    $celular = $_POST['celular']; // Recupera o número de celular
+    $celular = $_POST['celular']; // Recupera o número de celular já formatado
     $mensagem = $_POST['mensagem']; // Recupera a mensagem
 
     // Prepara os dados para envio via Evolution API v2
