@@ -5,73 +5,61 @@
 $apiUrl = 'https://{{baseURL}}/message/sendText/{{instance}}'; // URL da API Evolution v2
 $apiToken = 'seu-token-aqui'; // Token de autenticação da API
 
-$securityKey = 'chave-seguranca'; // Chave de segurança para validação
-
 $host = "localhost"; // Host do banco de dados MySQL
 $usuario = "root"; // Usuário do banco de dados MySQL
 $senha = "vertrigo"; // Senha do banco de dados MySQL
 $db = "mkradius"; // Nome do banco de dados MySQL
 
 // ------------------------------------------------------------------------------------------------
-// Início do processamento de envio de comprovante
+// Lógica para processar o título e mostrar as informações da mensagem antes de enviar
 // ------------------------------------------------------------------------------------------------
 
 // Verifica se o formulário foi submetido e se o campo 'titulo' está presente
 if (isset($_POST["titulo"])) {
     $titulo = $_POST["titulo"]; // Armazena o valor do título enviado pelo formulário
 
-    // Verifica se o campo 'chave' foi submetido
-    if (isset($_POST["chave"])) {
-        $chave = $_POST["chave"]; // Armazena a chave de segurança fornecida
+    // Conexão com o banco de dados MySQL usando o MySQLi
+    $mysqli = new mysqli($host, $usuario, $senha, $db);
+    
+    // Verifica se houve erro ao conectar ao banco de dados
+    if ($mysqli->connect_errno) {
+        echo "Falha na conexão: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error;
     }
 
-    // Validação simples da chave de segurança
-    if ($chave == $securityKey) { // Compara a chave fornecida com a chave definida no início do arquivo
-	
-        // Conexão com o banco de dados MySQL usando o MySQLi
-        $mysqli = new mysqli($host, $usuario, $senha, $db);
-        
-        // Verifica se houve erro ao conectar ao banco de dados
-        if ($mysqli->connect_errno) {
-            echo "Falha na conexão: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error;
-        }
+    // Conexão usando o método tradicional do MySQL (procedural)
+    $con = mysqli_connect($host, $usuario, $senha);
+    mysqli_select_db($con, $db); // Seleciona o banco de dados
 
-        // Conexão usando o método tradicional do MySQL (procedural)
-        $con = mysqli_connect($host, $usuario, $senha);
-        mysqli_select_db($con, $db); // Seleciona o banco de dados
+    // Consulta SQL para buscar as informações do pagamento do título/boleto
+    $boleto = "SELECT datavenc, datapag, valor, valorpag, coletor, formapag, login 
+               FROM sis_lanc 
+               WHERE id = $titulo"; // Faz a consulta SQL com base no número do título fornecido
 
-        // Consulta SQL para buscar as informações do pagamento do título/boleto
-        $boleto = "SELECT datavenc, datapag, valor, valorpag, coletor, formapag, login 
-                   FROM sis_lanc 
-                   WHERE id = $titulo"; // Faz a consulta SQL com base no número do título fornecido
+    // Executa a consulta SQL e armazena o resultado
+    $res = mysqli_query($con, $boleto);
 
-        // Executa a consulta SQL e armazena o resultado
-        $res = mysqli_query($con, $boleto);
+    // Extrai os dados da fatura e pagamento
+    while ($vreg = mysqli_fetch_row($res)) {
+        $datavenc = date('d/m/Y', strtotime($vreg[0])); // Formata a data de vencimento
+        $datapag = date('d/m/Y', strtotime($vreg[1]));  // Formata a data de pagamento
+        $valor = $vreg[2];   // Valor da fatura
+        $valorpag = $vreg[3]; // Valor pago
+        $coletor = $vreg[4];  // Coletor do pagamento
+        $formapag = $vreg[5]; // Forma de pagamento
+        $login = $vreg[6];    // Login do cliente associado ao pagamento
+    }
 
-        // Extrai os dados da fatura e pagamento
-        while ($vreg = mysqli_fetch_row($res)) {
-            $datavenc = date('d/m/Y', strtotime($vreg[0])); // Formata a data de vencimento
-            $datapag = date('d/m/Y', strtotime($vreg[1]));  // Formata a data de pagamento
-            $valor = $vreg[2];   // Valor da fatura
-            $valorpag = $vreg[3]; // Valor pago
-            $coletor = $vreg[4];  // Coletor do pagamento
-            $formapag = $vreg[5]; // Forma de pagamento
-            $login = $vreg[6];    // Login do cliente associado ao pagamento
-        }
+    // Segunda consulta SQL para buscar o número de celular do cliente com base no login
+    $cliente = "SELECT celular FROM sis_cliente WHERE login = '$login'";
+    $res = mysqli_query($con, $cliente);
 
-        // Segunda consulta SQL para buscar o número de celular do cliente com base no login
-        $cliente = "SELECT celular FROM sis_cliente WHERE login = '$login'";
-        $res = mysqli_query($con, $cliente);
+    // Extrai o número de celular do cliente
+    while ($vreg = mysqli_fetch_row($res)) {
+        $celular = $vreg[0]; // Armazena o número de celular do cliente
+    }
 
-        // Extrai o número de celular do cliente
-        while ($vreg = mysqli_fetch_row($res)) {
-            $celular = $vreg[0]; // Armazena o número de celular do cliente
-        }
-
-        // Prepara os dados para envio via Evolution API v2
-        $data = array(
-            "number" => "$celular", // Número de celular no formato internacional
-            "text" => "
+    // Prepara os dados para exibição ao usuário
+    $mensagem = "
 *Mensagem Automática de Recebimento de Pagamento*
 
 *Pagamento recebido em*: $datapag
@@ -83,42 +71,72 @@ if (isset($_POST["titulo"])) {
 
 Para segunda via e comprovantes dos pagamentos acesse:
 https://BrLink.org/cliente (coloque o *CPF* do titular)
-"
-        );
+";
 
-        // Converte o array de dados para o formato JSON
-        $jsonData = json_encode($data);
+    // Exibe as informações para revisão antes de confirmar o envio
+    echo "<h3>Revisar Comprovante</h3>";
+    echo "<p><strong>Número do celular:</strong> $celular</p>";
+    echo "<p><strong>Mensagem:</strong></p>";
+    echo "<pre>$mensagem</pre>";
 
-        // Inicializa a sessão cURL para envio da requisição
-        $ch = curl_init($apiUrl);
+    // Exibe o formulário de confirmação com os dados ocultos
+    echo '
+    <form method="post">
+        <input type="hidden" name="titulo" value="' . $titulo . '">
+        <input type="hidden" name="celular" value="' . $celular . '">
+        <input type="hidden" name="mensagem" value="' . htmlspecialchars($mensagem) . '">
+        <button type="submit" name="confirmar">Confirmar Envio</button>
+    </form>';
+}
 
-        // Configurações da requisição cURL
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Define que a resposta da requisição será retornada como string
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'apikey: ' . $apiToken // Insere o token da API no cabeçalho da requisição
-        ));
+// ------------------------------------------------------------------------------------------------
+// Lógica para enviar a mensagem após confirmação
+// ------------------------------------------------------------------------------------------------
 
-        // Define o método da requisição como POST e insere os dados JSON
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+if (isset($_POST['confirmar'])) {
+    // Verifica se o usuário confirmou o envio da mensagem
+    $celular = $_POST['celular']; // Recupera o número de celular
+    $mensagem = $_POST['mensagem']; // Recupera a mensagem
 
-        // Executa a requisição cURL e captura a resposta da API
-        $response = curl_exec($ch);
+    // Prepara os dados para envio via Evolution API v2
+    $data = array(
+        "number" => "$celular", // Número de celular no formato internacional
+        "text" => "$mensagem"   // Conteúdo da mensagem
+    );
 
-        // Verifica se houve algum erro durante a execução da requisição
-        if (curl_errno($ch)) {
-            echo 'Erro ao chamar a API: ' . curl_error($ch); // Exibe a mensagem de erro, se houver
-        } else {
-            echo 'Mensagem enviada com sucesso!'; // Exibe uma mensagem de sucesso
-        }
+    // Converte o array de dados para o formato JSON
+    $jsonData = json_encode($data);
 
-        // Fecha a sessão cURL
-        curl_close($ch);
+    // Inicializa a sessão cURL para envio da requisição
+    $ch = curl_init($apiUrl);
+
+    // Configurações da requisição cURL
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); // Define que a resposta da requisição será retornada como string
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json',
+        'apikey: ' . $apiToken // Insere o token da API no cabeçalho da requisição
+    ));
+
+    // Define o método da requisição como POST e insere os dados JSON
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+
+    // Executa a requisição cURL e captura a resposta da API
+    $response = curl_exec($ch);
+
+    // Verifica se houve algum erro durante a execução da requisição
+    if (curl_errno($ch)) {
+        echo 'Erro ao chamar a API: ' . curl_error($ch); // Exibe a mensagem de erro, se houver
     } else {
-        // Exibe uma mensagem de erro caso a chave de segurança fornecida seja inválida
-        echo 'Chave de segurança inválida.';
+        echo 'Mensagem enviada com sucesso!'; // Exibe uma mensagem de sucesso
     }
+
+    // Se necessário obter a resposta completa da API
+	// Para debug descomente a linha abaixo:
+    // echo 'Resposta da API: ' . $response; // Exibe a resposta completa para debug
+
+    // Fecha a sessão cURL
+    curl_close($ch);
 }
 ?>
 
@@ -147,7 +165,7 @@ https://BrLink.org/cliente (coloque o *CPF* do titular)
     }
 </style>
 
-<!-- Formulário para inserir o número do título/boleto e a chave de segurança -->
+<!-- Formulário para inserir o número do título/boleto -->
 <form name="login" method="post">
     <!-- Campo oculto para ações adicionais, mas não utilizado -->
     <input type="hidden" name="acao" value="nada">
@@ -156,10 +174,6 @@ https://BrLink.org/cliente (coloque o *CPF* do titular)
     <label for="titulo">Digite o número do título ou boleto:</label>
     <input type="text" name="titulo" id="titulo" size="16" maxlength="16" required>
 
-    <!-- Campo para inserir a chave de segurança -->
-    <label for="chave">Digite a chave de segurança:</label>
-    <input type="text" name="chave" id="chave" size="16" maxlength="16" required>
-
-    <!-- Botão para enviar os dados -->
-    <button type="submit">Enviar comprovante</button>
+    <!-- Botão para mostrar o comprovante -->
+    <button type="submit">Mostrar Comprovante</button>
 </form>
